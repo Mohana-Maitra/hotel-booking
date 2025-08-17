@@ -1,127 +1,150 @@
 import React, { useState } from 'react'
-import { assets, facilityIcons, roomsDummyData } from '../assets/assets'
-import { useNavigate } from 'react-router-dom'
-import StarRating from '../components/StarRating';
+import Title from '../../components/Title'
+import { assets } from '../../assets/assets'
 
-const CheckBox = ({label, selected = false, onChange = () => { }})=>{
-    return (
-      <label className="flex gap-3 items-center cursor-pointer mt-2 text-sm ">
-        <input type="checkbox" checked={selected} onChange={(e)=>onChange(e.target.checked, lable)} />
-        <span className='font-light select-none'>{label}</span>
-      </label>
-    )
-}
+const AddRoom = () => {
 
-const RadioButton = ({label, selected = false, onChange = () => { }})=>{
-    return (
-      <label className="flex gap-3 items-center cursor-pointer mt-2 text-sm ">
-        <input type="radio" name="sortOption" checked={selected} onChange={()=>onChange(label)} />
-        <span className='font-light select-none'>{label}</span>
-      </label>
-    )
-}
+  const [images, setImages] = useState({
+    1: null,
+    2: null,
+    3: null,
+    4: null
+  })
+  const [inputs, setInputs] = useState({
+    roomType: '',
+    pricePerNight: 0,
+    amenities: {
+      'Free WiFi': false,
+      'Free Breakfast': false,
+      'Room Service': false,
+      'Mountain View': false,
+      'Pool Access': false
+    }
+  })
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
 
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setMessage('')
 
-const AllRooms = () => {
-    const navigate = useNavigate();
-    const [openFilters, setOpenFilters] = useState(false)
+    try {
+      // Create FormData for file uploads
+      const formData = new FormData()
+      
+      // Add room data
+      formData.append('roomType', inputs.roomType)
+      formData.append('pricePerNight', inputs.pricePerNight)
+      formData.append('amenities', JSON.stringify(Object.keys(inputs.amenities).filter(key => inputs.amenities[key])))
+      
+      // Add images
+      Object.keys(images).forEach(key => {
+        if (images[key]) {
+          formData.append('images', images[key])
+        }
+      })
 
-    const roomTypes = [
-      "Single Bed",
-      "Double Bed",
-      "Luxury Bed",
-      "Family Suite",
-    ];
-    const priceRanges = [
-      '1000 to 1500',
-      '1500 to 2000',
-      '2000 to 2500',
-      '2500 to 3000',
-    ];
+      const response = await fetch('/api/rooms', {
+        method: 'POST',
+        body: formData
+      })
 
-    const sortOptions = [
-      "Price Low to High",
-      "Price High to Low",
-      "Newest First"
-    ];
+      const result = await response.json()
 
+      if (response.ok) {
+        setMessage('Room added successfully!')
+        // Reset form
+        setInputs({
+          roomType: '',
+          pricePerNight: 0,
+          amenities: {
+            'Free WiFi': false,
+            'Free Breakfast': false,
+            'Room Service': false,
+            'Mountain View': false,
+            'Pool Access': false
+          }
+        })
+        setImages({
+          1: null,
+          2: null,
+          3: null,
+          4: null
+        })
+      } else {
+        setMessage(`Error: ${result.message || 'Failed to add room'}`)
+      }
+    } catch (error) {
+      console.error('Error adding room:', error)
+      setMessage('Error: Failed to connect to server')
+    } finally {
+      setLoading(false)
+    }
+  }
   return (
-    <div className='flex flex-col-reverse lg:flex-row items-start justify-between pt-28 md:pt-35 px-4 md:px-16 lg:px-24 xl:px-32'>
-      <div>
-         <div className='flex flex-col items-start text-left'>
-            <h1 className='font-playfair text-4xl md:text-[40px]'>Hotel Rooms</h1>
-            <p className='text-sm md:text-base text-grey-500/90 mt-2 max-w-174'>Take advantage of our limited-time offers and special packages to enhance your stay and create unforgettable memories.</p>
-         </div>
-         
-         {roomsDummyData.map((room)=>(
-           <div key={room._id} className='flex flex-col md:flex-row items-start py-10 gap-6 border-b border-grey-300 last:pb-30 last:border-0'>
-            <img onClick={()=> {navigate(`/rooms/${room._id}`); scrollTo(0,0)}} 
-            src={room.images[0]} alt="hotel-img" title='View Room Details' className='max-h-65 md:w-1/2 rounded-xl shadow-lg object-cover cursor-pointer'/>
-            <div className='md:w-1/2 flex flex-col gap-2'>
-                <p className='text-grey-500'>{room.hotel.city}</p>
-                <p onClick={()=> {navigate(`/rooms/${room._id}`); scrollTo(0,0)}}
-                className='text-grey-800'>{room.hotel.name}</p>
-                <div className='flex items-center'>
-                     <StarRating />
-                     <p className='ml-2'>200+ reviews</p>
-                </div>
-                <div className='flex items-center gap-1 text-gray-500 mt-2 text-sm'>
-                    <img src={assets.locationIcon} alt="location-icon" />
-                    <span>{room.hotel.address}</span>
-                </div>
+    <form onSubmit={handleSubmit}>
+      <Title align='left' font='outfit' title='Add Room' subTitle='Fill in the details carefully and accurate room details, pricing, and amenities, to enhance the user booking experience.'/>
+      
+      {/* Success/Error Message */}
+      {message && (
+        <div className={`mt-4 p-3 rounded ${message.includes('Error') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+          {message}
+        </div>
+      )}
+      {/* Upload Area For Images */}
+       <p className='text-gray-800 mt-10'>Images</p>
+       <div className='grid grid-cols-2 sm:flex gap-4 my-2 flex-wrap'>
+        {Object.keys(images).map((key)=>(
+          <label htmlFor={`roomImage${key}`} key={key}>
+            <img className='max-h-13 cursor-pointer opacity-80' src={images[key] ? URL.createObjectURL(images[key]) : assets.uploadArea} alt="" />
+            <input type="file" accept='image/*' id={`roomImage${key}`} hidden 
+            onChange={e=> setImages({...images, [key]: e.target.files[0]})}/>
+          </label>
+        ))}
+       </div>
 
-                <div className='flex flex-wrap items-center mt-3 mb-6 gap-4'>
-                  {room.amenities.map((item, index)=>(
-                    <div key={index} className='flex items-center gap-2 px-3 py-2 rounded-lg bg-[#F5F5FF]/70'>
-                      <img src={facilityIcons[item]} alt={item} className='w-5 h-5' />
-                      <p className='text-xs'>{item}</p>
-                    </div>
-                  ))}
-                </div>
-                {/* Room Price Per Night */}
-                <p className='text-xl font-medium text-gray-700'>Rs {room.pricePerNight} /night</p>
-            </div>
-           </div>
-           ))}
-      </div>
-      {/* Filters */}
-      <div className='bg-white w-80 border border-gray-300 text-gray-600 max-lg:mb-8 min-lg:mt-16'>
-
-        <div className={`flex items-center justify-between px-5 py-2.5 min-lg:border-b border-gray-300 ${openFilters && "border-b"}`}>
-          <p className='text-base font-medium text-gray-800'>FILTERS</p>
-          <div className='text-xs cursor-pointer'>
-            <span onClick={()=> setOpenFilters(!openFilters)} 
-            className='lg:hidden'> 
-              {openFilters ? 'HIDE' : 'SHOW'}</span>
-            <span className='hidden lg:block'>CLEAR</span>
-          </div>
+       <div className='w-full flex max-sm:flex-col sm:gap-4 mt-4'>
+        <div className='flex-1 max-w-48'>
+          <p className='text-gray-800 mt-4'>Room Type</p>
+            <select onChange={e=> setInputs(e=> setInputs({...inputs, roomType: e.target.value}))}
+            className='border opacity-70 border-gray-300 mt-1 rounded p-2 w-full'>
+              <option value="">Select Room Type</option>
+              <option value="Single Bed">Single Bed</option>
+              <option value="Double Bed">Double Bed</option>
+              <option value="Luxury Room">Luxury Bed</option>
+              <option value="Family Suite">Family Suite</option>
+            </select>
+        </div>
+        <div>
+          <p className='mt-4 text-gray-800'>
+            Price <span className='text-xs'>/night</span>
+          </p>
+          <input type="number" placeholder='0' className='border border-gray-300 mt-1 rounded p-2 w-24' value={inputs.pricePerNight} onChange={e=>setInputs({...inputs, pricePerNight: e.target.value})} />
         </div>
 
-        <div className={`${openFilters ? 'h-auto' : "h-0 lg:h-auto"} overflow-hidden transition-all duration-700`}>
-          <div className='px-5 pt-5'>
-            <p className='font-medium text-gray-800 pb-2'>Popular Filters</p>
-            {roomTypes.map((room, index)=>(
-              <CheckBox key={index} label={room} />
-            ))}
+       </div>
+       <p className='text-gray-800 mt-4'>Aminities</p>
+       <div className='flex flex-col flex-wrap mt-1 text-gray-400 max-w-sm'>
+        {Object.keys(inputs.amenities).map((amenity, index)=>(
+          <div>
+            <input type="checkbox" id={`amenities$(index+1)`} checked={inputs.amenities[amenity]} onChange={()=>setInputs({...inputs,amenities: {...inputs.amenities, [amenity]: !inputs.amenities[amenity]}})} />
+            <label htmlFor={`amenities${index+1}`}> {amenity}</label>
           </div>
-          <div className='px-5 pt-5'>
-            <p className='font-medium text-gray-800 pb-2'>Price Range</p>
-            {priceRanges.map((range, index)=>(
-              <CheckBox key={index} label={`Rs ${range}`} />
-            ))}
-          </div>
-          <div className='px-5 pt-5 pb-7'>
-            <p className='font-medium text-gray-800 pb-2'>Sort By</p>
-            {sortOptions.map((option, index)=>(
-              <RadioButton key={index} label={option} />
-            ))}
-          </div>
+        ))}
 
-        </div>
-
-      </div>
-    </div>
+       </div>
+       <button 
+         type="submit" 
+         disabled={loading}
+         className={`px-8 py-2 rounded mt-8 cursor-pointer text-white ${
+           loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-dull'
+         }`}
+       >
+         {loading ? 'Adding Room...' : 'Add Room'}
+       </button>
+    </form>
   )
 }
 
-export default AllRooms
+export default AddRoom
